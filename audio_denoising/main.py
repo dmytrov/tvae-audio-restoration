@@ -119,7 +119,7 @@ def audio_denoising():
 
     # setup the experiment
     exp_config = ExpConfig(
-        batch_size=32,
+        batch_size=args.batch_size,
         output=training_file,
         reco_epochs=to.arange(args.no_epochs),
         log_blacklist=[

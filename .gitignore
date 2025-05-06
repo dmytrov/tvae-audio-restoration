@@ -12,3 +12,4 @@
 *.sh
 *.out
 *.err
+out*/
