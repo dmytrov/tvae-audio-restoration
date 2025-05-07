@@ -141,15 +141,17 @@ def audio_denoising():
     # append the noisy audio to the data logger
     logger.set_and_write(noisy_image=noisy)
 
-    if args.amortize:
+    if args.amortize > 0:
         # Amortized posterior sampler
         
-        if False:
+        if args.amortize == 1:
             variationalparams = ResNetMarginalVariationalParams(N=0, D=T, H=args.inner_net_shape[-1])
             posterior_sampler = MarginalBernoulli(variationalparams=variationalparams)
-        else:
+        elif args.amortize == 2:
             variationalparams = ResNetSequenceVariationalParams(N=0, D=T, H=args.inner_net_shape[-1])
             posterior_sampler = SequenceBernoulli(variationalparams=variationalparams)
+        else:
+            raise NotImplementedError()
         
         #if args.amortizer_params_file is not None:
         #    posterior_sampler.load_state_dict(

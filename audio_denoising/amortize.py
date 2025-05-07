@@ -28,6 +28,12 @@ def compute_marginal(Kset, log_f_joint):
     return marginal
 
 
+def stable_logist(x):
+    # This is much more numerically stable than simple
+    # return 1 / (1 + torch.exp(-x))
+    return torch.clamp(torch.sigmoid(x), min=EPS, max=1-EPS)
+
+
 def stable_entropy(log_f):
     """ Computes entropy from unnormalized log-probability (energy)
         :param log_f    : [N, K]    K energy values (batch of N distributions)
@@ -44,23 +50,18 @@ def stable_cross_entropy(p, logit_q):
         :param  logit_q     : tensor of logits of q-probabilities
     """
     # Simple reference implementation:
-    #   q_s = stable_logistic(logit_q, clamp=True)
-    #   crossH_pq = - (p * torch.log(q_s) + (1-p) * torch.log(1-q_s))
+    q_s = stable_logist(logit_q)
+    crossH_pq = - (p * torch.log(q_s) + (1-p) * torch.log(1-q_s))
     
-    log_q = torch.where(logit_q > 0, 
-                        -torch.log(torch.exp(-logit_q) + 1),
-                        logit_q - torch.log(torch.exp(logit_q) + 1))
-    log_not_q = torch.where(logit_q < 0, 
-                        -torch.log(torch.exp(logit_q) + 1),
-                        -logit_q - torch.log(torch.exp(-logit_q) + 1))
-    crossH_pq = - (p * log_q + (1-p) * log_not_q)
+    #log_q = torch.where(logit_q > 0, 
+    #                    -torch.log(torch.exp(-logit_q) + 1),
+    #                    logit_q - torch.log(torch.exp(logit_q) + 1))
+    #log_not_q = torch.where(logit_q < 0, 
+    #                    -torch.log(torch.exp(logit_q) + 1),
+    #                    -logit_q - torch.log(torch.exp(-logit_q) + 1))
+    #crossH_pq = - (p * log_q + (1-p) * log_not_q)
     return crossH_pq
 
-
-def stable_logist(x):
-    # This is much more numerically stable than simple
-    # return 1 / (1 + torch.exp(-x))
-    return torch.clamp(torch.sigmoid(x), min=EPS, max=1-EPS)
 
 
 class SamplerModule(Module):
@@ -109,6 +110,7 @@ class SimpleTrainableSampler(SamplerModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
         epoch_loss = []
         
+        #with torch.autograd.detect_anomaly():
         for epoch in range(10):
             losses = self._train_epoch(dataloader, datatransformer, Kset, log_f, optimizer, on_finish=None)
             epoch_loss.append(np.array(losses).mean())

@@ -31,7 +31,7 @@ def get_args():
     p.add_argument('-ephc', '--epochs-per-half-cycle', default=20, type=int) # number of iterations in the increasing half of a cycle (cycling learning rate parameter)
     p.add_argument('-me', '--merge-every', default=20, type=int) # produce an audio reconstruction every (e.g., 20) epochs
     p.add_argument('-nrm', '--norm', default=None, type=str) # normalization factor for the audio file 
-    p.add_argument('-am', '--amortize', default=False, action="store_true",)
+    p.add_argument('-am', '--amortize', default=0, type="int",)
     p.add_argument('-nams', '--n-amortized-samples', default=64, type=int)  # number of samples to draw from the amortized sampler every iteration
                    
     args = p.parse_args()
