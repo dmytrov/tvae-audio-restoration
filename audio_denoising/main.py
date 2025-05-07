@@ -50,7 +50,7 @@ def audio_denoising():
 
     # read in the clean audio file at 16kHz
     clean, sr = librosa.load(args.clean_audio_file, sr=16000) 
-    clean = to.tensor(clean).to(**dtype_device_kwargs) 
+    clean = to.tensor(clean).to(PRECISION) 
 
     # normalize if normalization is given 
     clean = clean / args.norm if args.norm is not None else clean
@@ -58,7 +58,7 @@ def audio_denoising():
     # choose whether a noisy file should be used 
     if args.use_noisy:
         noisy, sr = librosa.load(args.noisy_audio_file, sr=16000)
-        noisy = to.tensor(noisy).to(**dtype_device_kwargs)
+        noisy = to.tensor(noisy).to(PRECISION)
     # or noise with sigma std is added to the clean signal and used as noisy
     else:
         sigma = args.sigma / args.norm if args.norm is not None else args.sigma
