@@ -36,9 +36,6 @@ def audio_denoising():
     start_time = time.time()
     # get hyperparameters
     args = get_args()
-    print("Argument list:")
-    for k in sorted(vars(args), key=lambda s: s.lower()):
-        print("{: <25} : {}".format(k, vars(args)[k]))
 
     # determine directories to save output
     os.makedirs(args.output_directory, exist_ok=True)
@@ -50,6 +47,10 @@ def audio_denoising():
     sys.stdout = stdout_logger(txt_file)  # type: ignore
     print("Will write training output to {}.".format(training_file))
     print("Will write terminal output to {}".format(txt_file))
+
+    print("Argument list:")
+    for k in sorted(vars(args), key=lambda s: s.lower()):
+        print("{: <25} : {}".format(k, vars(args)[k]))
 
     # read in the clean audio file at 16kHz
     clean, sr = librosa.load(args.clean_audio_file, sr=16000) 
