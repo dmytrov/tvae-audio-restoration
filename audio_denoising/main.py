@@ -10,7 +10,7 @@ import torch as to
 import matplotlib.pyplot as plt
 
 import tvo
-from tvo.exp import EVOConfig, ExpConfig, Training
+from tvo.exp import EVOConfig, AmortizedEVOConfig, ExpConfig, Training
 from tvo.models import GaussianTVAE
 from tvo.utils.param_init import init_sigma2_default
 
@@ -18,6 +18,9 @@ from tvutil.prepost import OverlappingPatches
 
 from params import get_args 
 from utils import stdout_logger, store_as_h5, eval_fn
+
+from amortize import MarginalBernoulli, SequenceBernoulli
+from networks import ResNetMarginalVariationalParams, ResNetSequenceVariationalParams
 
 import soundfile as sf
 import librosa
@@ -108,13 +111,14 @@ def audio_denoising():
     print("Initializing experiment")
 
     # define hyperparameters of the variational optimization
-    estep_conf = EVOConfig(
+    estep_conf = AmortizedEVOConfig(
         n_states=args.Ksize,
         n_parents=args.n_parents,
         n_children=args.n_children,
         n_generations=args.n_generations,
         parent_selection="fitness",
         crossover=False,
+        n_amortized_samples=args.n_amortized_samples,
     )
 
     # setup the experiment
@@ -136,6 +140,22 @@ def audio_denoising():
     logger, trainer = exp.logger, exp.trainer
     # append the noisy audio to the data logger
     logger.set_and_write(noisy_image=noisy)
+
+    if args.amortize:
+        # Amortized posterior sampler
+        
+        if False:
+            variationalparams = ResNetMarginalVariationalParams(N=0, D=T, H=args.inner_net_shape[-1])
+            posterior_sampler = MarginalBernoulli(variationalparams=variationalparams)
+        else:
+            variationalparams = ResNetSequenceVariationalParams(N=0, D=T, H=args.inner_net_shape[-1])
+            posterior_sampler = SequenceBernoulli(variationalparams=variationalparams)
+        
+        #if args.amortizer_params_file is not None:
+        #    posterior_sampler.load_state_dict(
+        #        to.load(args.amortizer_params_file, weights_only=True))
+        posterior_sampler.to(DEVICE)
+        trainer.posterior_sampler = posterior_sampler
 
     # run epochs
     for epoch, summary in enumerate(exp.run(args.no_epochs)):
