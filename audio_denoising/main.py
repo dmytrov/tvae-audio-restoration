@@ -133,6 +133,7 @@ def audio_denoising():
             "train_subs",
             "train_reconstruction",
         ],
+        rollback_if_F_decreases=["W_0", "W_1", "b_0", "b_1", "pies", "sigma2"],
         log_only_latest_theta=True,
     )
     exp = Training(
@@ -160,31 +161,42 @@ def audio_denoising():
         posterior_sampler.to(DEVICE)
         trainer.posterior_sampler = posterior_sampler
 
+    def save_stats(epoch, reco):
+        # calculate the objective metrics
+        psnr, snr, pesq = eval_fn(clean[None, ...], reco) 
+        to_log = {"reco_image": reco, "snr": snr, "pesq": pesq, "psnr": psnr}
+        # add to data logger 
+        if to_log is not None:
+            logger.append_and_write(**to_log)
+        snr_str = f"{snr:.4f}"
+        pesq_str = f"{pesq:.4f}"
+        psnr_str = f"{psnr:.4f}"
+        wav_file = f"{args.output_directory}/reco-epoch({epoch})-snr({snr_str})-pesq({pesq_str})-psnr({psnr_str}).wav"
+        reco_audio = reco.squeeze(0).detach().cpu().numpy()
+        # write reconstruction audio file
+        sf.write(wav_file, reco_audio, sr)
+        print(f"Wrote {wav_file}")
+
+        if trainer.posterior_sampler is not None:
+            to.save(trainer.posterior_sampler.state_dict(), 
+                    f"{args.output_directory}/epoch({epoch})-sampler.state")
+            
+    reco = ovp.set_and_merge(trainer.train_reconstruction.t())
+    save_stats(0, reco)
+
     # run epochs
     for epoch, summary in enumerate(exp.run(args.no_epochs)):
         summary.print()
 
         # merge reconstructed audio chunks and generate reconstructed audio
-        merge = ((epoch - 1) % args.merge_every) == 0
+        merge = ((epoch+1) % args.merge_every) == 0
         assert hasattr(trainer, "train_reconstruction")
         reco = ovp.set_and_merge(trainer.train_reconstruction.t()) if merge else None
 
         # save audio files if merge
         if merge:
-            # calculate the objective metrics
-            psnr, snr, pesq = eval_fn(clean[None, ...], reco) 
-            to_log = {"reco_image": reco, "snr": snr, "pesq": pesq, "psnr": psnr}
-            # add to data logger 
-            if to_log is not None:
-                logger.append_and_write(**to_log)
-            snr_str = f"{snr:.2f}".replace("-", "m").replace(".", "_")
-            pesq_str = f"{pesq:.2f}".replace(".", "_")
-            psnr_str = f"{psnr:.2f}".replace(".", "_")
-            wav_file = f"{args.output_directory}/reco-epoch{epoch-1}-snr{snr_str}-pesq{pesq_str}-psnr{psnr_str}.wav"
-            reco_audio = reco.squeeze(0).detach().cpu().numpy()
-            # write reconstruction audio file
-            sf.write(wav_file, reco_audio, sr)
-            print(f"Wrote {wav_file}")
+            save_stats(epoch+1, reco)
+            
 
     print("Finished")
     end_time = time.time()
